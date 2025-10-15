@@ -11,6 +11,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import librosa
 import soundfile as sf
 import numpy as np
+from pydub import AudioSegment
 
 load_dotenv()
 
@@ -49,14 +50,18 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Rutas de archivos temporales
         input_path = f'temp_audio/input_{user_id}.ogg'
+        wav_path = f'temp_audio/input_{user_id}.wav'
         output_path = f'temp_audio/output_{user_id}.ogg'
         
         # Descargar el audio
         await voice.download_to_drive(input_path)
         logger.info(f"Audio descargado de usuario {user_id}")
         
-        # Cargar el audio con librosa
-        y, sr = librosa.load(input_path, sr=None)
+        audio = AudioSegment.from_file(input_path, format="ogg")
+        audio.export(wav_path, format="wav")
+        
+        # Cargar el audio con librosa desde WAV
+        y, sr = librosa.load(wav_path, sr=None)
         
         # Cambiar el pitch (tono) para hacerlo más agudo (femenino)
         # n_steps=4 significa subir 4 semitonos (ajustable según preferencia)
@@ -79,11 +84,9 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Eliminar mensaje de procesamiento
         await processing_msg.delete()
         
-        # Limpiar archivos temporales
-        if os.path.exists(input_path):
-            os.remove(input_path)
-        if os.path.exists(output_path):
-            os.remove(output_path)
+        for temp_file in [input_path, wav_path, output_path]:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
             
         logger.info(f"Proceso completado para usuario {user_id}")
         
